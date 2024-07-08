@@ -1,0 +1,4 @@
+#!/bin/bash
+sudo rsync -a --info=progress2 --exclude="lost+found" --exclude=".cache" /home/dave /media/dave/LinuxBackku/dave&0
+
+

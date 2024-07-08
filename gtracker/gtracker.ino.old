@@ -1,0 +1,257 @@
+// Basic demo for accelerometer readings from Adafruit LIS331HH
+
+//#include <time.h>
+#include <Wire.h>
+#include <Adafruit_H3LIS331.h>
+#include <Adafruit_Sensor.h>
+#include <RTCZero.h> // Include RTC library - make sure it's installed!
+#include <DateTime.h>
+#include "gtracker.h"
+
+#define DEBUG
+
+#define MINUTES_TO_WAIT 10
+
+typedef struct G_data_struct {
+  float max_X;
+  float max_Y;
+  float max_Z;
+} G_data;
+
+G_data gdata;
+
+int report_results  = false;
+int report_now      = false;
+int report_done     = false;
+
+Adafruit_H3LIS331 lis = Adafruit_H3LIS331();
+
+RTCZero rtc; // Create an RTC object
+
+void setNextAlarm(int nextMinutes) {
+
+  byte alarmHours;
+  byte alarmMinutes;
+  byte alarmSeconds;
+
+  Serial.print("nextMinutes = ");
+  Serial.println(nextMinutes);
+
+#ifdef DEBUG
+  if (nextMinutes > 60) {
+    Serial.print("Error! nextMinutes can not be greater than 60! - ");
+    Serial.println(nextMinutes);
+    return;
+  }
+#endif
+
+  alarmHours = rtc.getHours();
+  alarmMinutes = rtc.getMinutes();
+  alarmSeconds = rtc.getSeconds();
+
+  if ((alarmMinutes + nextMinutes) >= 60) {
+    alarmMinutes = (alarmMinutes + nextMinutes) - 60;
+    rtc.setAlarmMinutes(alarmMinutes);
+
+    if ((alarmHours + 1) >= 24) {
+      alarmHours = 0;
+      rtc.setAlarmHours(alarmHours);
+    } else {
+      alarmHours += 1;
+      rtc.setAlarmHours(alarmHours);
+    }
+  } else {
+    rtc.setAlarmHours(alarmHours);
+    alarmMinutes += nextMinutes;
+    rtc.setAlarmMinutes(alarmMinutes);
+  }
+
+  rtc.setAlarmSeconds(alarmSeconds);
+//  rtc.enableAlarm(rtc.MATCH_HHMMSS); // match Every Day
+
+  Serial.print("Alarm set to ");
+  Serial.print(alarmHours);
+  Serial.print(':');
+  Serial.print(alarmMinutes);
+  Serial.print(':');
+  Serial.println(alarmSeconds);
+}
+
+void alarmMatch(void) {
+  report_results = true;
+  rtc.disableAlarm();
+}
+
+void reportRequested(void) {
+  report_now = true;
+}
+
+void setup(void) {
+
+  gdata.max_X = 0;
+  gdata.max_Y = 0;
+  gdata.max_Z = 0;
+
+  int i;
+
+  Serial.begin(115200);
+
+  while (!Serial)
+  {
+    ;
+  }
+
+  Serial.println("gtracker code");
+
+  while (!Serial) delay(10);     // will pause Zero, Leonardo, etc until serial console opens
+
+  rtc.begin();
+
+  if (!lis.begin_I2C()) {   // change this to 0x19 for alternative i2c address
+    Serial.println("Couldnt start");
+    while (1) yield();
+  }
+
+  Serial.println("H3LIS331 found!");
+
+  lis.setRange(H3LIS331_RANGE_400_G);   // 100, 200, or 400 G!
+
+  Serial.print("Range set to: ");
+
+  switch (lis.getRange()) {
+    case H3LIS331_RANGE_100_G: 
+      Serial.println("100 g"); 
+      break;
+    case H3LIS331_RANGE_200_G: 
+      Serial.println("200 g"); 
+      break;
+    case H3LIS331_RANGE_400_G: 
+      Serial.println("400 g"); 
+      break;
+  }
+
+  lis.setDataRate(LIS331_DATARATE_1000_HZ);
+
+  Serial.print("Data rate set to: ");
+
+  switch (lis.getDataRate()) {
+    case LIS331_DATARATE_POWERDOWN: 
+      Serial.println("Powered Down"); 
+      break;
+    case LIS331_DATARATE_50_HZ: 
+      Serial.println("50 Hz"); 
+      break;
+    case LIS331_DATARATE_100_HZ: 
+      Serial.println("100 Hz"); 
+      break;
+    case LIS331_DATARATE_400_HZ: 
+      Serial.println("400 Hz"); 
+      break;
+    case LIS331_DATARATE_1000_HZ: 
+      Serial.println("1000 Hz"); 
+      break;
+    case LIS331_DATARATE_LOWPOWER_0_5_HZ: 
+      Serial.println("0.5 Hz Low Power"); 
+      break;
+    case LIS331_DATARATE_LOWPOWER_1_HZ: 
+      Serial.println("1 Hz Low Power"); 
+      break;
+    case LIS331_DATARATE_LOWPOWER_2_HZ: 
+      Serial.println("2 Hz Low Power"); 
+      break;
+    case LIS331_DATARATE_LOWPOWER_5_HZ: 
+      Serial.println("5 Hz Low Power"); 
+      break;
+    case LIS331_DATARATE_LOWPOWER_10_HZ: 
+        Serial.println("10 Hz Low Power"); 
+        break;
+  }
+
+  //!!! notice The year is limited to 2000-2099
+  rtc.begin();
+
+  rtc.setTime(0, 0, 0); // Then set the time
+  rtc.setDate(0, 0, 0); // And the date
+  Serial.println("RTC Started!");
+
+  Serial.println("adjusted time!");
+  Serial.println();
+  Serial.print(rtc.getYear(), DEC);
+  Serial.print('/');
+  Serial.print(rtc.getMonth(), DEC);
+  Serial.print('/');
+  Serial.print(rtc.getDay(), DEC);
+  Serial.print(" ");
+  Serial.print(rtc.getHours(), DEC);
+  Serial.print(':');
+  Serial.print(rtc.getMinutes(), DEC);
+  Serial.print(':');
+  Serial.print(rtc.getSeconds(), DEC);
+  Serial.println();
+  Serial.println();
+
+  rtc.attachInterrupt(alarmMatch); // callback while alarm is match
+  setNextAlarm(MINUTES_TO_WAIT);
+  rtc.enableAlarm(rtc.MATCH_HHMMSS); // match Every Day
+}
+
+void loop() {
+
+  /* Get a new sensor event, normalized */
+  sensors_event_t event;
+
+  float temp_x;
+  float temp_y;
+  float temp_z;
+
+  if (report_results == true) {
+    report();
+  } else {
+    if (report_done == false) {
+
+      lis.getEvent(&event);
+
+      if (gdata.max_X < (temp_x = event.acceleration.x)) {
+        gdata.max_X = temp_x;
+      }
+
+      if (gdata.max_Y < (temp_y = event.acceleration.y)) {
+        gdata.max_Y = temp_y;
+      }
+
+      if (gdata.max_Z < (temp_z = event.acceleration.z)) {
+        gdata.max_Z = temp_z;
+      }
+    }
+  }
+}
+
+void report(void) {
+  Serial.println("Alarm Match!");
+  Serial.print("max_X = ");
+  Serial.print(gdata.max_X);
+  Serial.print(" ");
+  Serial.print("max_Y = ");
+  Serial.print(gdata.max_Y);
+  Serial.print(" ");
+  Serial.print("max_Z = ");
+  Serial.print(gdata.max_Z);
+  Serial.println();
+  Serial.println("Done...");
+  Serial.println();
+
+  Wire.end();
+  Wire.begin(GTRACKER_ADDR);
+  Wire.onRequest(reportRequested);
+
+  while (1) {
+    if (report_now == true) {
+      Wire.write((const uint8_t *)&gdata, (size_t)sizeof(gdata));
+      noInterrupts();
+      report_now = false;
+      interrupts();
+    }
+    yield();
+  }
+}
+
