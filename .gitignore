@@ -8,5 +8,6 @@
 # data so they should not be stored in a repository.
 *.vpwhistu
 *.vpwhist
+*.vpwwildcardcache
 *.vtg
 Debug

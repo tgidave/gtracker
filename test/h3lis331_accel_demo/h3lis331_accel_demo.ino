@@ -14,7 +14,7 @@
 #define H3LIS331_CS 10
 
 //#define SERIAL_PORT SerialUSB
-                        #define SERIAL_PORT Serial
+#define SERIAL_PORT Serial
 
 Adafruit_H3LIS331 lis = Adafruit_H3LIS331();
 

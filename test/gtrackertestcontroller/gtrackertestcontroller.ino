@@ -6,10 +6,16 @@
 // Comment the next line out before shipping...
 #define DEBUG
 
-//#define SERIAL_PORT SERIAL_PORTUSB //Used for Sparkfun boards
-#define SERIAL_PORT Serial    //Used for Seeeduino XIOA and Adafruit QT Py board
+//#define SERIAL_SERIAL SERIAL_SERIALUSB //Used for Sparkfun boards
+#define DEBUG_SERIAL Serial    //Used for Seeeduino XIOA and Adafruit QT Py board
 
-#define MINUTES_TO_WAIT 10
+#define REPORT_SERIAL Serial1
+
+#define MINUTES_TO_WAIT 7
+
+#define MAX_TRIES 500
+
+#define BUFF_SIZE 340
 
 RTCZero rtc;
 
@@ -29,13 +35,13 @@ void setNextAlarm(int nextMinutes) {
   byte alarmMinutes;
   byte alarmSeconds;
 
-  SERIAL_PORT.print("nextMinutes = ");
-  SERIAL_PORT.println(nextMinutes);
+  DEBUG_SERIAL.print("nextMinutes = ");
+  DEBUG_SERIAL.println(nextMinutes);
 
 #ifdef DEBUG
   if (nextMinutes > 60) {
-    SERIAL_PORT.print("Error! nextMinutes can not be greater than 60! - ");
-    SERIAL_PORT.println(nextMinutes);
+    DEBUG_SERIAL.print("Error! nextMinutes can not be greater than 60! - ");
+    DEBUG_SERIAL.println(nextMinutes);
     return;
   }
 #endif
@@ -64,12 +70,12 @@ void setNextAlarm(int nextMinutes) {
 
   rtc.setAlarmSeconds(alarmSeconds);
 
-  SERIAL_PORT.print("Alarm set to ");
-  SERIAL_PORT.print(alarmHours);
-  SERIAL_PORT.print(':');
-  SERIAL_PORT.print(alarmMinutes);
-  SERIAL_PORT.print(':');
-  SERIAL_PORT.println(alarmSeconds);
+  DEBUG_SERIAL.print("Alarm set to ");
+  DEBUG_SERIAL.print(alarmHours);
+  DEBUG_SERIAL.print(':');
+  DEBUG_SERIAL.print(alarmMinutes);
+  DEBUG_SERIAL.print(':');
+  DEBUG_SERIAL.println(alarmSeconds);
 }
 
 void alarmMatch(void) {
@@ -79,111 +85,144 @@ void alarmMatch(void) {
 
 void setup(void) {
 
-  SERIAL_PORT.begin(115200);
+  char msg[] = "abc"; 
 
-  while (!SERIAL_PORT)
-  {
-    ;
+  DEBUG_SERIAL.begin(115200);
+
+  while (!DEBUG_SERIAL) {
+    delay(10);     // will pause Zero, Leonardo, etc until serial console opens
   }
 
-  SERIAL_PORT.println("Controller code...");
+  DEBUG_SERIAL.println("Controller code...");
+
+  REPORT_SERIAL.begin(9600);
 
   rtc.begin();
 
   rtc.setTime(0, 0, 0); // Then set the time
   rtc.setDate(0, 0, 0); // And the date
-  SERIAL_PORT.println("RTC Started!");
+  DEBUG_SERIAL.println("RTC Started!");
 
-  SERIAL_PORT.println();
-  SERIAL_PORT.print(rtc.getYear());
-  SERIAL_PORT.print('/');
-  SERIAL_PORT.print(rtc.getMonth());
-  SERIAL_PORT.print('/');
-  SERIAL_PORT.print(rtc.getDay());
-  SERIAL_PORT.print(" ");
-  SERIAL_PORT.print(rtc.getHours());
-  SERIAL_PORT.print(':');
-  SERIAL_PORT.print(rtc.getMinutes());
-  SERIAL_PORT.print(':');
-  SERIAL_PORT.print(rtc.getSeconds());
-  SERIAL_PORT.println();
-  SERIAL_PORT.println();
+  DEBUG_SERIAL.println();
+  DEBUG_SERIAL.print(rtc.getYear());
+  DEBUG_SERIAL.print('/');
+  DEBUG_SERIAL.print(rtc.getMonth());
+  DEBUG_SERIAL.print('/');
+  DEBUG_SERIAL.print(rtc.getDay());
+  DEBUG_SERIAL.print(" ");
+  DEBUG_SERIAL.print(rtc.getHours());
+  DEBUG_SERIAL.print(':');
+  DEBUG_SERIAL.print(rtc.getMinutes());
+  DEBUG_SERIAL.print(':');
+  DEBUG_SERIAL.print(rtc.getSeconds());
+  DEBUG_SERIAL.println();
+  DEBUG_SERIAL.println();
 
   rtc.attachInterrupt(alarmMatch); // callback while alarm is match
   setNextAlarm(MINUTES_TO_WAIT);
   rtc.enableAlarm(rtc.MATCH_HHMMSS); // match Every Day
-
-  Wire.begin();
 }
 
 void loop(void) {
+
   unsigned int dataLen;
   uint8_t *wkptr;
   int i;
+  int tries;
+  int xferDone;
+  int xferGotData;
+  int xferOverrun;
+  int xferNoResponse;
+  uint8_t buff[BUFF_SIZE];
 
   if (get_results == true) {
-    
-    SERIAL_PORT.println("Alarm!!!");
 
-    //Check to see if the peripheral is there...
-    Wire.beginTransmission(GTRACKER_ADDR);
+    wkptr = (uint8_t *)&buff;
+    i = 0;
+    tries = 0;
+    xferDone = false;
+    xferGotData = false;
+    xferOverrun = false;
+    xferNoResponse = false;
 
-    SERIAL_PORT.println("begin done");
+    DEBUG_SERIAL.println("Alarm!!!");
 
-    if(Wire.endTransmission(GTRACKER_ADDR) == 0) {
+    while (REPORT_SERIAL.available()) {
+      REPORT_SERIAL.read();
+      // Clear the read buffer.
+    }
 
-      SERIAL_PORT.println("end done");
+    REPORT_SERIAL.write('?');
 
-      wkptr = (uint8_t *)&gdata;
-      i = 0;
+    DEBUG_SERIAL.println("? sent...");
 
-      SERIAL_PORT.println("sending requectFrom");
+    i = 0;
 
-      dataLen = Wire.requestFrom(GTRACKER_ADDR, sizeof(gdata));
+    while (1) {
+      if (REPORT_SERIAL.available()) {
+        buff[i] = REPORT_SERIAL.read();
+        xferGotData = true;
 
-      SERIAL_PORT.println(dataLen);
-
-#ifdef DEBUG
-      if (dataLen > sizeof(gdata)) {
-        SERIAL_PORT.print("Bad return from Wire.requestFrom() = ");
-        SERIAL_PORT.println(dataLen);
-        dataLen = sizeof(gdata);
-      }
-  #endif
-
-      if (dataLen > 0) {
-
-        while (Wire.available()) {
-          wkptr[i] = Wire.read();    // Receive a byte as character
-          ++i;
-
-          if (i >= dataLen) {
-            SERIAL_PORT.println("Peripheral sending too much data!!!");
-            break;
-          }
+        if (buff[i] == '\n') {
+          buff[i + 1] = '\0';
+          xferDone = true;
+          DEBUG_SERIAL.println("Got xferDone");
+          break;
         }
 
-        SERIAL_PORT.println("G_data received!!!");
-        SERIAL_PORT.print("max_X = ");
-        SERIAL_PORT.print(gdata.max_X);
-        SERIAL_PORT.print(" ");
-        SERIAL_PORT.print("max_Y = ");
-        SERIAL_PORT.print(gdata.max_Y);
-        SERIAL_PORT.print(" ");
-        SERIAL_PORT.print("max_Z = ");
-        SERIAL_PORT.print(gdata.max_Z);
-        SERIAL_PORT.println();
-        SERIAL_PORT.println("Done...");
-        SERIAL_PORT.println();
+        i++;
 
+        if (i >= BUFF_SIZE) {
+          xferOverrun = true;
+          break;
+        }
+      } else {  // Data not available
+
+        ++tries;
+
+        if (tries > MAX_TRIES) {
+          xferNoResponse = true;
+          break;
+        }
+
+        delay(10);
       }
-    } else {
-      SERIAL_PORT.println("Peripheral isn't ready...");
     }
-    
-    get_results = false;
-    setNextAlarm(MINUTES_TO_WAIT);
-    rtc.enableAlarm(rtc.MATCH_HHMMSS); // match Every Day
+
+    if (xferOverrun == true) {
+
+      DEBUG_SERIAL.println("Overrun on message receive!!!");
+
+      while (1) {
+        yield();
+      }
+    }
+
+    if (xferGotData == true && xferNoResponse == true) {
+
+      DEBUG_SERIAL.println("Timeout receiving message!!!");
+
+      while (1) {
+        yield();
+      }
+    }
+
+    if (xferDone == true) {
+
+      DEBUG_SERIAL.println("G_data received!!!");
+      DEBUG_SERIAL.println();
+      DEBUG_SERIAL.println("Done...");
+      DEBUG_SERIAL.println((char *)&buff);
+      DEBUG_SERIAL.println();
+
+    } else {
+
+      DEBUG_SERIAL.println("No response...");
+      get_results = false;
+      setNextAlarm(MINUTES_TO_WAIT);
+      rtc.enableAlarm(rtc.MATCH_HHMMSS); // match hours minutes seconds
+
+    }
   }
 }
 

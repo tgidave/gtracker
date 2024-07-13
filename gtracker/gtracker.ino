@@ -1,16 +1,40 @@
-// Basic demo for accelerometer readings from Adafruit LIS331HH
-
+///////////////////////////////////////////////////////////////////////////////
+//
+// gtracker.ino
+//
+// This code will track G forces.
+//
+// The gtracker program will track G forces that occur for the first user
+// defined period of time and then send the results to another device through
+// the serial port to be reported back to the user.
+//
+// Author                                                       
+//                                                                               
+// Uncle Dave                                                  
+//                                                                               
+//  License                                                                                                                                    
+//  Unknown (Talk to Cy)                                                        
+//                                                                               
+//  HISTORY                                                             
+//                                                                               
+//  v1.0   - First release
+//
+///////////////////////////////////////////////////////////////////////////////
+ 
 #include <stdio.h>
-//#include <time.h>
+#include <DateTime.h>
 #include <Wire.h>
 #include <Adafruit_H3LIS331.h>
 #include <Adafruit_Sensor.h>
 #include <RTCZero.h> // Include RTC library - make sure it's installed!
-#include <DateTime.h>
 #include <Adafruit_NeoPixel.h>
 #include "gtracker.h"
 
 #define DEBUG
+#define DEBUG_SERIAL Serial
+
+#define REPORT_SERIAL       Serial1
+//#define REPORT_SERIAL_EVENT Serial1event
 
 #define MINUTES_TO_WAIT 5
 
@@ -36,12 +60,12 @@ void setNextAlarm(int nextMinutes) {
   byte alarmSeconds;
 
 #ifdef DEBUG
-  Serial.print("nextMinutes = ");
-  Serial.println(nextMinutes);
+  DEBUG_SERIAL.print("nextMinutes = ");
+  DEBUG_SERIAL.println(nextMinutes);
 
   if (nextMinutes > 60) {
-    Serial.print("Error! nextMinutes can not be greater than 60! - ");
-    Serial.println(nextMinutes);
+    DEBUG_SERIAL.print("Error! nextMinutes can not be greater than 60! - ");
+    DEBUG_SERIAL.println(nextMinutes);
     return;
   }
 #endif
@@ -71,29 +95,34 @@ void setNextAlarm(int nextMinutes) {
 //  rtc.enableAlarm(rtc.MATCH_HHMMSS); // match Every Day
 
 #ifdef DEBUG
-  Serial.print("Alarm set to ");
-  Serial.print(alarmHours);
-  Serial.print(':');
-  Serial.print(alarmMinutes);
-  Serial.print(':');
-  Serial.println(alarmSeconds);
+  DEBUG_SERIAL.print("Alarm set to ");
+  DEBUG_SERIAL.print(alarmHours);
+  DEBUG_SERIAL.print(':');
+  DEBUG_SERIAL.print(alarmMinutes);
+  DEBUG_SERIAL.print(':');
+  DEBUG_SERIAL.println(alarmSeconds);
 #endif
 }
 
 void alarmMatch(void) {
-  if (Serial1.read == '\n') {
-    if (reportDone == false) {
-      if (reportResults == true) {
-        reportNow = true;
-      }
-    }
+
+  reportResults = true;
+// For testing purposes only - normally commented out.
+//  reportNow = true;
+
+}
+/*
+void REPORT_SERIAL_EVENT(void) {
+
+  char readData;
+
+  readData = REPORT_SERIAL.read();
+
+  if ((reportResults == true) && (readData == '\n')) {
+      reportNow == true;
   }
 }
-
-void serial1event(voie) {
-//  report_now = true;
-//}
-
+*/
 void setup(void) {
 
   max_X = 0;
@@ -102,12 +131,23 @@ void setup(void) {
 
   int i;
 
+  int available;
+
 #ifdef DEBUG 
-  Serial.begin(115200);
-  Serial.println("gtracker code");
+  DEBUG_SERIAL.begin(115200);
+
+  while (!DEBUG_SERIAL) {
+    delay(10);     // will pause Zero, Leonardo, etc until serial console opens
+  }
+
+  DEBUG_SERIAL.println("gtracker code");
 #endif
 
-  Serial1.begin(9600);
+  REPORT_SERIAL.begin(9600);
+
+//  available = REPORT_SERIAL.availableForWrite();
+//  DEBUG_SERIAL.print("availableForWrite = ");
+//  DEBUG_SERIAL.println(available);
 
   rtc.begin();
 
@@ -132,60 +172,60 @@ void setup(void) {
     }
   }
 
-  Serial.println("H3LIS331 found!");
+  DEBUG_SERIAL.println("H3LIS331 found!");
 
-  lis.setRange(H3LIS331_RANGE_100_G);   // 100, 200, or 400 G!
+  //lis.setRange(H3LIS331_RANGE_100_G);   // 100, 200, or 400 G!
   //lis.setRange(H3LIS331_RANGE_200_G);   // 100, 200, or 400 G!
-  //lis.setRange(H3LIS331_RANGE_400_G);   // 100, 200, or 400 G!
+  lis.setRange(H3LIS331_RANGE_400_G);   // 100, 200, or 400 G!
 
-  Serial.print("Range set to: ");
+  DEBUG_SERIAL.print("Range set to: ");
 
   switch (lis.getRange()) {
     case H3LIS331_RANGE_100_G: 
-      Serial.println("100 g"); 
+      DEBUG_SERIAL.println("100 g"); 
       break;
     case H3LIS331_RANGE_200_G: 
-      Serial.println("200 g"); 
+      DEBUG_SERIAL.println("200 g"); 
       break;
     case H3LIS331_RANGE_400_G: 
-      Serial.println("400 g"); 
+      DEBUG_SERIAL.println("400 g"); 
       break;
   }
 
   lis.setDataRate(LIS331_DATARATE_1000_HZ);
 
-  Serial.print("Data rate set to: ");
+  DEBUG_SERIAL.print("Data rate set to: ");
 
   switch (lis.getDataRate()) {
     case LIS331_DATARATE_POWERDOWN: 
-      Serial.println("Powered Down"); 
+      DEBUG_SERIAL.println("Powered Down"); 
       break;
     case LIS331_DATARATE_50_HZ: 
-      Serial.println("50 Hz"); 
+      DEBUG_SERIAL.println("50 Hz"); 
       break;
     case LIS331_DATARATE_100_HZ: 
-      Serial.println("100 Hz"); 
+      DEBUG_SERIAL.println("100 Hz"); 
       break;
     case LIS331_DATARATE_400_HZ: 
-      Serial.println("400 Hz"); 
+      DEBUG_SERIAL.println("400 Hz"); 
       break;
     case LIS331_DATARATE_1000_HZ: 
-      Serial.println("1000 Hz"); 
+      DEBUG_SERIAL.println("1000 Hz"); 
       break;
     case LIS331_DATARATE_LOWPOWER_0_5_HZ: 
-      Serial.println("0.5 Hz Low Power"); 
+      DEBUG_SERIAL.println("0.5 Hz Low Power"); 
       break;
     case LIS331_DATARATE_LOWPOWER_1_HZ: 
-      Serial.println("1 Hz Low Power"); 
+      DEBUG_SERIAL.println("1 Hz Low Power"); 
       break;
     case LIS331_DATARATE_LOWPOWER_2_HZ: 
-      Serial.println("2 Hz Low Power"); 
+      DEBUG_SERIAL.println("2 Hz Low Power"); 
       break;
     case LIS331_DATARATE_LOWPOWER_5_HZ: 
-      Serial.println("5 Hz Low Power"); 
+      DEBUG_SERIAL.println("5 Hz Low Power"); 
       break;
     case LIS331_DATARATE_LOWPOWER_10_HZ: 
-        Serial.println("10 Hz Low Power"); 
+        DEBUG_SERIAL.println("10 Hz Low Power"); 
         break;
   }
 
@@ -194,23 +234,23 @@ void setup(void) {
 
   rtc.setTime(0, 0, 0); // Then set the time
   rtc.setDate(0, 0, 0); // And the date
-  Serial.println("RTC Started!");
+  DEBUG_SERIAL.println("RTC Started!");
 
-  Serial.println("adjusted time!");
-  Serial.println();
-  Serial.print(rtc.getYear(), DEC);
-  Serial.print('/');
-  Serial.print(rtc.getMonth(), DEC);
-  Serial.print('/');
-  Serial.print(rtc.getDay(), DEC);
-  Serial.print(" ");
-  Serial.print(rtc.getHours(), DEC);
-  Serial.print(':');
-  Serial.print(rtc.getMinutes(), DEC);
-  Serial.print(':');
-  Serial.print(rtc.getSeconds(), DEC);
-  Serial.println();
-  Serial.println();
+  DEBUG_SERIAL.println("adjusted time!");
+  DEBUG_SERIAL.println();
+  DEBUG_SERIAL.print(rtc.getYear(), DEC);
+  DEBUG_SERIAL.print('/');
+  DEBUG_SERIAL.print(rtc.getMonth(), DEC);
+  DEBUG_SERIAL.print('/');
+  DEBUG_SERIAL.print(rtc.getDay(), DEC);
+  DEBUG_SERIAL.print(" ");
+  DEBUG_SERIAL.print(rtc.getHours(), DEC);
+  DEBUG_SERIAL.print(':');
+  DEBUG_SERIAL.print(rtc.getMinutes(), DEC);
+  DEBUG_SERIAL.print(':');
+  DEBUG_SERIAL.print(rtc.getSeconds(), DEC);
+  DEBUG_SERIAL.println();
+  DEBUG_SERIAL.println();
 
   rtc.attachInterrupt(alarmMatch); // callback while alarm is match
   setNextAlarm(MINUTES_TO_WAIT);
@@ -222,14 +262,18 @@ void loop() {
   /* Get a new sensor event, normalized */
   sensors_event_t event;
 
+  int i;
+  uint8_t *wkptr;
+
   float temp_x;
   float temp_y;
   float temp_z;
 
-  char msg[100];
-
+  uint8_t msg[340];
+  
   if (reportDone == false) {
     if (reportResults == false) {
+
       lis.getEvent(&event);
 
       if (max_X < (temp_x = event.acceleration.x)) {
@@ -243,21 +287,29 @@ void loop() {
       if (max_Z < (temp_z = event.acceleration.z)) {
         max_Z = temp_z;
       }
-    } else { // reportResults == true
-      if (reportNow == true) {
-        max_X = max_X / SENSORS_GRAVITY_STANDARD;
-        max_Y = max_Y / SENSORS_GRAVITY_STANDARD;
-        max_Z = max_Z / SENSORS_GRAVITY_STANDARD;
 
-        sprintf((char *)&msg, "max_X = %.2f max_Y = %.2f max_Z = %.2f\n", max_X, max_Y, max_Z );
-        Serial1.write((char *)&msg);
-#ifdef DEBUG
-        Serial.write(char *)&msg);
-        Serial.println();
-        Serial.println("Done...");
-        Serial.println();
-#endif
-        reportDone = true
+    } else { // reportResults == true
+
+      if (REPORT_SERIAL.available()) {
+        if (REPORT_SERIAL.read() == '?') {
+
+  #ifdef DEBUG
+          DEBUG_SERIAL.println("Sending...");
+  #endif
+          max_X = max_X / SENSORS_GRAVITY_STANDARD;
+          max_Y = max_Y / SENSORS_GRAVITY_STANDARD;
+          max_Z = max_Z / SENSORS_GRAVITY_STANDARD;
+          sprintf((char *)&msg, "max_X = %.2f max_Y = %.2f max_Z = %.2f\n", max_X, max_Y, max_Z );
+          DEBUG_SERIAL.println((char *)&msg);
+          REPORT_SERIAL.write((char *)&msg);
+  #ifdef DEBUG
+          DEBUG_SERIAL.write((char *)&msg);
+          DEBUG_SERIAL.println();
+          DEBUG_SERIAL.println("Done...");
+          DEBUG_SERIAL.println();
+  #endif
+          reportDone = true;
+        }
       }
     }
   }
