@@ -42,9 +42,10 @@ float max_X;
 float max_Y;
 float max_Z;
 
-int reportResults  = false;
-int reportNow      = false;
-int reportDone     = false;
+int reportResults = false;
+int reportNow     = false;
+int reportDone    = false;
+bool firstTime    = true;
 
 Adafruit_H3LIS331 lis = Adafruit_H3LIS331();
 
@@ -92,7 +93,6 @@ void setNextAlarm(int nextMinutes) {
   }
 
   rtc.setAlarmSeconds(alarmSeconds);
-//  rtc.enableAlarm(rtc.MATCH_HHMMSS); // match Every Day
 
 #ifdef DEBUG
   DEBUG_SERIAL.print("Alarm set to ");
@@ -107,22 +107,10 @@ void setNextAlarm(int nextMinutes) {
 void alarmMatch(void) {
 
   reportResults = true;
-// For testing purposes only - normally commented out.
+// The next line is for testing purposes only - normally commented out.
 //  reportNow = true;
-
 }
-/*
-void REPORT_SERIAL_EVENT(void) {
 
-  char readData;
-
-  readData = REPORT_SERIAL.read();
-
-  if ((reportResults == true) && (readData == '\n')) {
-      reportNow == true;
-  }
-}
-*/
 void setup(void) {
 
   max_X = 0;
@@ -264,7 +252,7 @@ void loop() {
 
   int i;
   uint8_t *wkptr;
-
+//  bool firstTime;
   float temp_x;
   float temp_y;
   float temp_z;
@@ -289,6 +277,18 @@ void loop() {
       }
 
     } else { // reportResults == true
+//      DEBUG_SERIAL.println("Alarm...");
+      // Clear the read buffer.
+      if (firstTime == true) {
+
+        DEBUG_SERIAL.println("reportResults is true");
+
+        while(REPORT_SERIAL.available()) {
+          REPORT_SERIAL.read();
+        }
+
+        firstTime = false;
+      }
 
       if (REPORT_SERIAL.available()) {
         if (REPORT_SERIAL.read() == '?') {
@@ -300,7 +300,6 @@ void loop() {
           max_Y = max_Y / SENSORS_GRAVITY_STANDARD;
           max_Z = max_Z / SENSORS_GRAVITY_STANDARD;
           sprintf((char *)&msg, "max_X = %.2f max_Y = %.2f max_Z = %.2f\n", max_X, max_Y, max_Z );
-          DEBUG_SERIAL.println((char *)&msg);
           REPORT_SERIAL.write((char *)&msg);
   #ifdef DEBUG
           DEBUG_SERIAL.write((char *)&msg);
