@@ -124,9 +124,9 @@ void setup(void) {
 #ifdef DEBUG 
   DEBUG_SERIAL.begin(115200);
 
-  while (!DEBUG_SERIAL) {
-    delay(10);     // will pause Zero, Leonardo, etc until serial console opens
-  }
+//  while (!DEBUG_SERIAL) {
+//    delay(10);     // will pause Zero, Leonardo, etc until serial console opens
+//  }
 
   DEBUG_SERIAL.println("gtracker code");
 #endif
