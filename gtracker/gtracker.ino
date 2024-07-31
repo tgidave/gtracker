@@ -8,19 +8,19 @@
 // defined period of time and then send the results to another device through
 // the serial port to be reported back to the user.
 //
-// Author                                                       
-//                                                                               
-// Uncle Dave                                                  
-//                                                                               
-//  License                                                                                                                                    
-//  Unknown (Talk to Cy)                                                        
-//                                                                               
-//  HISTORY                                                             
-//                                                                               
+// Author
+//
+// Uncle Dave
+//
+//  License
+//  Unknown (Talk to Cy)
+//
+//  HISTORY
+//
 //  v1.0   - First release
 //
 ///////////////////////////////////////////////////////////////////////////////
- 
+
 #include <stdio.h>
 #include <DateTime.h>
 #include <Wire.h>
@@ -37,18 +37,18 @@
 #endif  // DEBUG
 
 #define ALARM_HOUR    1
-#define ALARM_MINUTE  0
+#define ALARM_MINUTE  0 
 #define ALARM_SECOND  0
 
 #define REPORT_SERIAL Serial1
 
-float maxX;
-float maxY;
-float maxZ;
-float maxMag;
-float maxMagX;
-float maxMagY;
-float maxMagZ;
+double maxX;
+double maxY;
+double maxZ;
+double maxMag;
+double maxMagX;
+double maxMagY;
+double maxMagZ;
 
 bool H3LIS331Down  = false;
 bool reportResults = false;
@@ -59,6 +59,8 @@ bool firstTime     = true;
 Adafruit_H3LIS331 lis = Adafruit_H3LIS331();
 
 RTCZero rtc; // Create an RTC object
+
+Adafruit_NeoPixel pixels(1, PIN_NEOPIXEL);
 
 void setNextAlarm(int nextMinutes) {
 
@@ -122,7 +124,7 @@ void setup(void) {
   maxY = 0;
   maxZ = 0;
   maxMag = 0;
-  
+
 #ifdef DEBUG
   DEBUG_SERIAL.begin(115200);
   delay(5000);     // Wait for the serial port to become ready.
@@ -133,6 +135,8 @@ void setup(void) {
 
   rtc.begin();
 
+  pixels.begin();  // initialize the pixel
+
   if (!lis.begin_I2C()) {   // change this to 0x19 for alternative i2c address
 
 #ifdef DEBUG
@@ -142,68 +146,68 @@ void setup(void) {
 
   } else {
 
-  #ifdef DEBUG
+#ifdef DEBUG
     DEBUG_SERIAL.println("H3LIS331 found!");
-  #endif  // DEBUG
+#endif  // DEBUG
 
     //lis.setRange(H3LIS331_RANGE_100_G);   // 100, 200, or 400 G!
     //lis.setRange(H3LIS331_RANGE_200_G);   // 100, 200, or 400 G!
     lis.setRange(H3LIS331_RANGE_400_G);   // 100, 200, or 400 G!
 
-  #ifdef DEBUG
+#ifdef DEBUG
     DEBUG_SERIAL.print("Range set to: ");
 
     switch (lis.getRange()) {
-      case H3LIS331_RANGE_100_G: 
-        DEBUG_SERIAL.println("100 g"); 
-        break;
-      case H3LIS331_RANGE_200_G: 
-        DEBUG_SERIAL.println("200 g"); 
-        break;
-      case H3LIS331_RANGE_400_G: 
-        DEBUG_SERIAL.println("400 g"); 
-        break;
+    case H3LIS331_RANGE_100_G:
+      DEBUG_SERIAL.println("100 g");
+      break;
+    case H3LIS331_RANGE_200_G:
+      DEBUG_SERIAL.println("200 g");
+      break;
+    case H3LIS331_RANGE_400_G:
+      DEBUG_SERIAL.println("400 g");
+      break;
     }
-  #endif  // DEBUG
+#endif  // DEBUG
 
     lis.setDataRate(LIS331_DATARATE_1000_HZ);
 
-  #ifdef DEBUG
+#ifdef DEBUG
     DEBUG_SERIAL.print("Data rate set to: ");
 
     switch (lis.getDataRate()) {
-      case LIS331_DATARATE_POWERDOWN: 
-        DEBUG_SERIAL.println("Powered Down"); 
-        break;
-      case LIS331_DATARATE_50_HZ: 
-        DEBUG_SERIAL.println("50 Hz"); 
-        break;
-      case LIS331_DATARATE_100_HZ: 
-        DEBUG_SERIAL.println("100 Hz"); 
-        break;
-      case LIS331_DATARATE_400_HZ: 
-        DEBUG_SERIAL.println("400 Hz"); 
-        break;
-      case LIS331_DATARATE_1000_HZ: 
-        DEBUG_SERIAL.println("1000 Hz"); 
-        break;
-      case LIS331_DATARATE_LOWPOWER_0_5_HZ: 
-        DEBUG_SERIAL.println("0.5 Hz Low Power"); 
-        break;
-      case LIS331_DATARATE_LOWPOWER_1_HZ: 
-        DEBUG_SERIAL.println("1 Hz Low Power"); 
-        break;
-      case LIS331_DATARATE_LOWPOWER_2_HZ: 
-        DEBUG_SERIAL.println("2 Hz Low Power"); 
-        break;
-      case LIS331_DATARATE_LOWPOWER_5_HZ: 
-        DEBUG_SERIAL.println("5 Hz Low Power"); 
-        break;
-      case LIS331_DATARATE_LOWPOWER_10_HZ: 
-          DEBUG_SERIAL.println("10 Hz Low Power"); 
-          break;
+    case LIS331_DATARATE_POWERDOWN:
+      DEBUG_SERIAL.println("Powered Down");
+      break;
+    case LIS331_DATARATE_50_HZ:
+      DEBUG_SERIAL.println("50 Hz");
+      break;
+    case LIS331_DATARATE_100_HZ:
+      DEBUG_SERIAL.println("100 Hz");
+      break;
+    case LIS331_DATARATE_400_HZ:
+      DEBUG_SERIAL.println("400 Hz");
+      break;
+    case LIS331_DATARATE_1000_HZ:
+      DEBUG_SERIAL.println("1000 Hz");
+      break;
+    case LIS331_DATARATE_LOWPOWER_0_5_HZ:
+      DEBUG_SERIAL.println("0.5 Hz Low Power");
+      break;
+    case LIS331_DATARATE_LOWPOWER_1_HZ:
+      DEBUG_SERIAL.println("1 Hz Low Power");
+      break;
+    case LIS331_DATARATE_LOWPOWER_2_HZ:
+      DEBUG_SERIAL.println("2 Hz Low Power");
+      break;
+    case LIS331_DATARATE_LOWPOWER_5_HZ:
+      DEBUG_SERIAL.println("5 Hz Low Power");
+      break;
+    case LIS331_DATARATE_LOWPOWER_10_HZ:
+      DEBUG_SERIAL.println("10 Hz Low Power");
+      break;
     }
-  #endif  // DEBUG
+#endif  // DEBUG
 
   }
 
@@ -235,17 +239,12 @@ void setup(void) {
 
   rtc.attachInterrupt(alarmMatch); // callback while alarm is match
 
-//  rtc.setAlarmHours(23);
-//  rtc.setAlarmMinutes(59);
-//  rtc.setAlarmSeconds(59);
-
-// For testing...
   rtc.setAlarmHours(ALARM_HOUR);
   rtc.setAlarmMinutes(ALARM_MINUTE);
   rtc.setAlarmSeconds(ALARM_SECOND);
 
   rtc.enableAlarm(rtc.MATCH_HHMMSS); // match Every Day
-  
+
 }
 
 void loop() {
@@ -255,13 +254,13 @@ void loop() {
 
   int i;
   uint8_t *wkptr;
-  float tempX;
-  float tempY;
-  float tempZ;
-  float tempMag;
+  double tempX;
+  double tempY;
+  double tempZ;
+  double tempMag;
 
   uint8_t msg[340];
-  
+
   if (reportDone == false) {
     if (reportResults == false) {
       if (!H3LIS331Down) {
@@ -280,7 +279,7 @@ void loop() {
           maxZ = tempZ;
         }
 
-        tempMag = sqrt((tempX * tempX) + (tempY * tempY) + (tempZ * tempY));
+        tempMag = sqrt((tempX * tempX) + (tempY * tempY) + (tempZ * tempZ));
 
         if (tempMag > maxMag) {
           maxMag  = tempMag;
@@ -296,9 +295,15 @@ void loop() {
 
 #ifdef DEBUG
         DEBUG_SERIAL.println("reportResults is true");
+
+        // set the first pixel #0 to red
+        pixels.setPixelColor(0, pixels.Color(255, 0, 0));
+        // and write the data
+        pixels.show();
+
 #endif  // DEBUG
 
-        while(REPORT_SERIAL.available()) {
+        while (REPORT_SERIAL.available()) {
           REPORT_SERIAL.read();
         }
 
@@ -308,29 +313,32 @@ void loop() {
       if (REPORT_SERIAL.available()) {
         if (REPORT_SERIAL.read() == '?') {
 
-  #ifdef DEBUG
+#ifdef DEBUG
           DEBUG_SERIAL.println("Sending...");
-  #endif
+#endif
           if (H3LIS331Down) {
 
             strcpy((char *)&msg, "ERROR: H3LIS331 did not come ready!!!\n");
 
           } else {
 
-            sprintf((char *)&msg, 
+            sprintf((char *)&msg,
                     "maxX = %.2f maxY = %.2f maxZ = %.2f\nmaxMagX = %.2f maxMagY = %.2f maxMagZ = %.2f maxMag = %.2f\n\r",
-                    maxX, maxY, maxZ, maxMagX, maxMagY, maxMagZ, maxMag );
+                    maxX, maxY, maxZ, maxMagX, maxMagY, maxMagZ, maxMag);
 
 //            sprintf((char *)&msg, "maxX = %.2f maxY = %.2f maxZ = %.2f\n", maxX, maxY, maxZ);
           }
 
           REPORT_SERIAL.write((char *)&msg);
-  #ifdef DEBUG
+#ifdef DEBUG
           DEBUG_SERIAL.write((char *)&msg);
           DEBUG_SERIAL.println();
           DEBUG_SERIAL.println("Done...");
           DEBUG_SERIAL.println();
-  #endif
+
+          pixels.clear();
+          pixels.show();
+#endif
           reportDone = true;
         }
       }
