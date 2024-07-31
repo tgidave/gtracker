@@ -30,29 +30,36 @@
 #include <Adafruit_NeoPixel.h>
 #include "gtracker.h"
 
-//#define DEBUG
+#define DEBUG
 
 #ifdef DEBUG
   #define DEBUG_SERIAL Serial
 #endif  // DEBUG
 
-#define REPORT_SERIAL       Serial1
+#define ALARM_HOUR    1
+#define ALARM_MINUTE  0
+#define ALARM_SECOND  0
 
-float max_X;
-float max_Y;
-float max_Z;
+#define REPORT_SERIAL Serial1
+
+float maxX;
+float maxY;
+float maxZ;
+float maxMag;
+float maxMagX;
+float maxMagY;
+float maxMagZ;
 
 bool H3LIS331Down  = false;
 bool reportResults = false;
 bool reportNow     = false;
 bool reportDone    = false;
-bool firstTime    = true;
+bool firstTime     = true;
 
 Adafruit_H3LIS331 lis = Adafruit_H3LIS331();
 
 RTCZero rtc; // Create an RTC object
 
-/*
 void setNextAlarm(int nextMinutes) {
 
   byte alarmHours;
@@ -100,7 +107,6 @@ void setNextAlarm(int nextMinutes) {
   DEBUG_SERIAL.println(alarmSeconds);
 #endif
 }
-*/
 
 void alarmMatch(void) {
 
@@ -111,12 +117,12 @@ void alarmMatch(void) {
 void setup(void) {
 
   int i;
-//  int available;
 
-  max_X = 0;
-  max_Y = 0;
-  max_Z = 0;
-
+  maxX = 0;
+  maxY = 0;
+  maxZ = 0;
+  maxMag = 0;
+  
 #ifdef DEBUG
   DEBUG_SERIAL.begin(115200);
   delay(5000);     // Wait for the serial port to become ready.
@@ -229,10 +235,17 @@ void setup(void) {
 
   rtc.attachInterrupt(alarmMatch); // callback while alarm is match
 
-  rtc.setAlarmHours(23);
-  rtc.setAlarmMinutes(59);
-  rtc.setAlarmSeconds(59);
+//  rtc.setAlarmHours(23);
+//  rtc.setAlarmMinutes(59);
+//  rtc.setAlarmSeconds(59);
+
+// For testing...
+  rtc.setAlarmHours(ALARM_HOUR);
+  rtc.setAlarmMinutes(ALARM_MINUTE);
+  rtc.setAlarmSeconds(ALARM_SECOND);
+
   rtc.enableAlarm(rtc.MATCH_HHMMSS); // match Every Day
+  
 }
 
 void loop() {
@@ -242,9 +255,10 @@ void loop() {
 
   int i;
   uint8_t *wkptr;
-  float temp_x;
-  float temp_y;
-  float temp_z;
+  float tempX;
+  float tempY;
+  float tempZ;
+  float tempMag;
 
   uint8_t msg[340];
   
@@ -254,16 +268,25 @@ void loop() {
 
         lis.getEvent(&event);
 
-        if (max_X < (temp_x = event.acceleration.x)) {
-          max_X = temp_x;
+        if (maxX < (tempX = (event.acceleration.x / SENSORS_GRAVITY_STANDARD))) {
+          maxX = tempX;
         }
 
-        if (max_Y < (temp_y = event.acceleration.y)) {
-          max_Y = temp_y;
+        if (maxY < (tempY = (event.acceleration.y / SENSORS_GRAVITY_STANDARD))) {
+          maxY = tempY;
         }
 
-        if (max_Z < (temp_z = event.acceleration.z)) {
-          max_Z = temp_z;
+        if (maxZ < (tempZ = (event.acceleration.z / SENSORS_GRAVITY_STANDARD))) {
+          maxZ = tempZ;
+        }
+
+        tempMag = sqrt((tempX * tempX) + (tempY * tempY) + (tempZ * tempY));
+
+        if (tempMag > maxMag) {
+          maxMag  = tempMag;
+          maxMagX = tempX;
+          maxMagY = tempY;
+          maxMagZ = tempZ;
         }
       }
     } else { // reportResults == true
@@ -290,15 +313,15 @@ void loop() {
   #endif
           if (H3LIS331Down) {
 
-            strcpy((char *)&msg, "H3LIS331 did not come up!!!\n");
+            strcpy((char *)&msg, "ERROR: H3LIS331 did not come ready!!!\n");
 
           } else {
 
-            max_X = max_X / SENSORS_GRAVITY_STANDARD;
-            max_Y = max_Y / SENSORS_GRAVITY_STANDARD;
-            max_Z = max_Z / SENSORS_GRAVITY_STANDARD;
-            sprintf((char *)&msg, "max_X = %.2f max_Y = %.2f max_Z = %.2f\n", max_X, max_Y, max_Z );
+            sprintf((char *)&msg, 
+                    "maxX = %.2f maxY = %.2f maxZ = %.2f\nmaxMagX = %.2f maxMagY = %.2f maxMagZ = %.2f maxMag = %.2f\n\r",
+                    maxX, maxY, maxZ, maxMagX, maxMagY, maxMagZ, maxMag );
 
+//            sprintf((char *)&msg, "maxX = %.2f maxY = %.2f maxZ = %.2f\n", maxX, maxY, maxZ);
           }
 
           REPORT_SERIAL.write((char *)&msg);
