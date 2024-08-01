@@ -318,7 +318,7 @@ void loop() {
 #endif
           if (H3LIS331Down) {
 
-            strcpy((char *)&msg, "ERROR: H3LIS331 did not come ready!!!\n");
+            strcpy((char *)&msg, "ERROR: H3LIS331 did not come ready!!!\n\r");
 
           } else {
 
