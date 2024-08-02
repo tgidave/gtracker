@@ -323,7 +323,7 @@ void loop() {
           } else {
 
             sprintf((char *)&msg,
-                    "maxX = %.2f maxY = %.2f maxZ = %.2f\nmaxMagX = %.2f maxMagY = %.2f maxMagZ = %.2f maxMag = %.2f\n\r",
+                    "maxX = %.2f maxY = %.2f maxZ = %.2f g\nmaxMagX = %.2f maxMagY = %.2f maxMagZ = %.2f maxMag = %.2f g\n\r",
                     maxX, maxY, maxZ, maxMagX, maxMagY, maxMagZ, maxMag);
 
 //            sprintf((char *)&msg, "maxX = %.2f maxY = %.2f maxZ = %.2f\n", maxX, maxY, maxZ);
