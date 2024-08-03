@@ -30,7 +30,7 @@
 #include <Adafruit_NeoPixel.h>
 #include "gtracker.h"
 
-#define DEBUG
+//#define DEBUG
 
 #ifdef DEBUG
   #define DEBUG_SERIAL Serial
