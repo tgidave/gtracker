@@ -62,6 +62,7 @@ RTCZero rtc; // Create an RTC object
 
 Adafruit_NeoPixel pixels(1, PIN_NEOPIXEL);
 
+/*
 void setNextAlarm(int nextMinutes) {
 
   byte alarmHours;
@@ -109,7 +110,8 @@ void setNextAlarm(int nextMinutes) {
   DEBUG_SERIAL.println(alarmSeconds);
 #endif
 }
-
+*/ 
+ 
 void alarmMatch(void) {
 
   reportResults = true;
@@ -267,15 +269,15 @@ void loop() {
 
         lis.getEvent(&event);
 
-        if (maxX < (tempX = (event.acceleration.x / SENSORS_GRAVITY_STANDARD))) {
+        if (abs(maxX) < abs(tempX = (event.acceleration.x / SENSORS_GRAVITY_STANDARD))) {
           maxX = tempX;
         }
 
-        if (maxY < (tempY = (event.acceleration.y / SENSORS_GRAVITY_STANDARD))) {
+        if (abs(maxY) < abs(tempY = (event.acceleration.y / SENSORS_GRAVITY_STANDARD))) {
           maxY = tempY;
         }
 
-        if (maxZ < (tempZ = (event.acceleration.z / SENSORS_GRAVITY_STANDARD))) {
+        if (abs(maxZ) < abs(tempZ = (event.acceleration.z / SENSORS_GRAVITY_STANDARD))) {
           maxZ = tempZ;
         }
 
