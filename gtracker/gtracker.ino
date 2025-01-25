@@ -30,14 +30,14 @@
 #include <Adafruit_NeoPixel.h>
 #include "gtracker.h"
 
-//#define DEBUG
+#define DEBUG
 
 #ifdef DEBUG
   #define DEBUG_SERIAL Serial
 #endif  // DEBUG
 
-#define ALARM_HOUR    1
-#define ALARM_MINUTE  0 
+#define ALARM_HOUR    0
+#define ALARM_MINUTE  5 
 #define ALARM_SECOND  0
 
 #define REPORT_SERIAL Serial1
